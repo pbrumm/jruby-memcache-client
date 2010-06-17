@@ -1,14 +1,17 @@
 require 'java'
 require 'base64'
 
-require File.dirname(__FILE__) + '/java/memcached-dev_2.0.2.jar'
+require File.dirname(__FILE__) + '/java/spy_memcached-2.5-3.jar'
 
 class MemCache
-  include_class 'com.meetup.memcached.MemcachedClient'
-  include_class 'com.meetup.memcached.SockIOPool'
-  include_class 'com.meetup.memcached.Logger'
+  include_class 'net.spy.memcached.MemcachedClient'
+  include_class 'net.spy.memcached.ConnectionFactory'
+  include_class 'net.spy.memcached.KetamaConnectionFactory'
+  include_class 'net.spy.memcached.AddrUtil'
+  include_class 'java.util.List'
+  include_class 'java.util.Arrays'
 
-  VERSION = '1.7.0'
+  VERSION = '1.7.1'
 
   ##
   # Default options for the cache object.
@@ -91,67 +94,61 @@ class MemCache
     @pool_name = opts[:pool_name] || opts["pool_name"]
     @readonly = opts[:readonly] || opts["readonly"]
 
-    @client = MemcachedClient.new(@pool_name)
+    @client = MemcachedClient.new(KetamaConnectionFactory.new, AddrUtil.getAddresses(@servers.join(" ").to_java_string) )
 
-    @client.error_handler = opts[:error_handler] if opts[:error_handler]
-    @client.primitiveAsString = true
-    @client.sanitizeKeys = false
+   # @client.primitiveAsString = true
+   # @client.sanitizeKeys = false
+    
+  #  weights = Array.new(@servers.size, DEFAULT_WEIGHT)
 
-    weights = Array.new(@servers.size, DEFAULT_WEIGHT)
-
-    @pool = SockIOPool.getInstance(@pool_name)
-    unless @pool.initialized?
-      @pool.servers = @servers.to_java(:string)
-      @pool.weights = weights.to_java(:Integer)
-
-      @pool.initConn = opts[:pool_initial_size]
-      @pool.minConn = opts[:pool_min_size]
-      @pool.maxConn = opts[:pool_max_size]
-
-      @pool.maxIdle = opts[:pool_max_idle]
-      @pool.maxBusyTime = opts[:pool_max_busy]
-      @pool.maintSleep = opts[:pool_maintenance_thread_sleep]
-      @pool.socketTO = opts[:pool_socket_timeout]
-      @pool.socketConnectTO = opts[:pool_socket_connect_timeout]
-
-      @pool.failover = opts[:pool_use_failover]
-      @pool.failback = opts[:pool_use_failback]
-      @pool.aliveCheck = opts[:pool_use_alive]
-      @pool.nagle = opts[:pool_use_nagle]
-
-      # __method methods have been removed in jruby 1.5
-	  @pool.java_send :initialize rescue @pool.initialize__method
-    end
-
-    Logger.getLogger('com.meetup.memcached.MemcachedClient').setLevel(opts[:log_level])
-    Logger.getLogger('com.meetup.memcached.SockIOPool').setLevel(opts[:log_level])
+#    @pool = SockIOPool.getInstance(@pool_name)
+#    unless @pool.initialized?
+#      @pool.servers = @servers.to_java(:string)
+#      @pool.weights = weights.to_java(:Integer)
+#
+#      @pool.initConn = opts[:pool_initial_size]
+#      @pool.minConn = opts[:pool_min_size]
+#      @pool.maxConn = opts[:pool_max_size]
+#
+#      @pool.maxIdle = opts[:pool_max_idle]
+#      @pool.maxBusyTime = opts[:pool_max_busy]
+#      @pool.maintSleep = opts[:pool_maintenance_thread_sleep]
+#      @pool.socketTO = opts[:pool_socket_timeout]
+#      @pool.socketConnectTO = opts[:pool_socket_connect_timeout]
+#
+#      @pool.failover = opts[:pool_use_failover]
+#      @pool.failback = opts[:pool_use_failback]
+#      @pool.aliveCheck = opts[:pool_use_alive]
+#      @pool.nagle = opts[:pool_use_nagle]
+#
+#      # __method methods have been removed in jruby 1.5
+#	  @pool.java_send :initialize rescue @pool.initialize__method
+#    end
+#
+#    Logger.getLogger('com.meetup.memcached.MemcachedClient').setLevel(opts[:log_level])
+#    Logger.getLogger('com.meetup.memcached.SockIOPool').setLevel(opts[:log_level])
   end
 
   def reset
-    @pool.shut_down
-	@pool.java_send :initialize rescue @pool.initialize__method
+    @client.shutdown
+	  @client = MemcachedClient.new(KetamaConnectionFactory.new, AddrUtil.getAddresses(@servers.join(" ").to_java_string) )
   end
-
+  def shutdown
+    @client.shutdown
+  end
   ##
   # Returns the servers that the client has been configured to
   # use. Injects an alive? method into the string so it works with the
   # updated Rails MemCacheStore session store class.
   def servers
-    @pool.servers.to_a.collect do |s|
-      s.instance_eval(<<-EOIE)
-      def alive?
-        #{!!stats[s]}
-      end
-      EOIE
-      s
-    end rescue []
+    []
   end
 
   ##
   # Determines whether any of the connections to the servers is
   # alive. We are alive if it is the case.
   def alive?
-    servers.to_a.any? { |s| s.alive? }
+    true
   end
 
   alias :active? :alive?
@@ -161,12 +158,7 @@ class MemCache
   # cache. Retrieves the raw value if the raw parameter is set.
   def get(key, raw = false)
     value = @client.get(make_cache_key(key))
-    return nil if value.nil?
-    unless raw
-      marshal_bytes = java.lang.String.new(value).getBytes(MARSHALLING_CHARSET)
-      decoded = Base64.decode64(String.from_java_bytes(marshal_bytes))
-      value = Marshal.load(decoded)
-    end
+
     value
   end
 
@@ -177,17 +169,13 @@ class MemCache
   def get_multi(keys, raw = false)
     keys = keys.map {|k| make_cache_key(k)}
     keys = keys.to_java :String
+    keys_collection = Arrays.asList(keys)
+
     values = {}
-    values_j = @client.getMulti(keys)
-    values_j.to_a.each {|kv|
-      k,v = kv
-      next if v.nil?
-      unless raw
-        marshal_bytes = java.lang.String.new(v).getBytes(MARSHALLING_CHARSET)
-        decoded = Base64.decode64(String.from_java_bytes(marshal_bytes))
-        v = Marshal.load(decoded)
-      end
-      values[k] = v
+    values_map = @client.getBulk(keys_collection)
+    
+    values_map.keySet.to_a.each {|key|
+      values = values_map.get(key).to_s
     }
     values
   end
@@ -196,14 +184,14 @@ class MemCache
   # Associates a value with a key in the cache. MemCached will expire
   # the value if an expiration is provided. The raw parameter allows
   # us to store a value without marshalling it first.
-  def set(key, value, expiry = 0, raw = false)
-    raise MemCacheError, "Update of readonly cache" if @readonly
-    value = marshal_value(value) unless raw
+  def set(key, value, expiry = 0)
+    
+    value = value.to_java_string if value.kind_of?(String)
     key = make_cache_key(key)
     if expiry == 0
-      @client.set key, value
+      @client.set key, expiry, value
     else
-      @client.set key, value, expiration(expiry)
+      @client.set key, expiry, value
     end
   end
 
@@ -294,9 +282,9 @@ class MemCache
   protected
   def make_cache_key(key)
     if namespace.nil? then
-      key
+      key.to_java_string
     else
-      "#{@namespace}:#{key}"
+      "#{@namespace}:#{key}".to_java_string
     end
   end
 

@@ -4,8 +4,8 @@
 # -*- encoding: utf-8 -*-
 
 Gem::Specification.new do |s|
-  s.name = %q{jruby-memcache-client}
-  s.version = "1.7.0"
+  s.name = %q{jruby-memcache-spy-client}
+  s.version = "1.0.0"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Abhi Yerra", "Ikai Lan", "Frederic Jean", "Lennon Day-Reynolds", "slyphon", "Brayn Helmkamp", "Travis Tilley"]
@@ -22,7 +22,7 @@ Gem::Specification.new do |s|
      "Rakefile",
      "VERSION.yml",
      "jruby-memcache-client.gemspec",
-     "lib/java/memcached-dev_2.0.2.jar",
+     "lib/java/spy_memcached-2.5-2.jar",
      "lib/memcache.rb",
      "spec/jruby_memcache_spec.rb"
   ]
