@@ -22,7 +22,7 @@ Gem::Specification.new do |s|
      "Rakefile",
      "VERSION.yml",
      "jruby-memcache-client.gemspec",
-     "lib/java/spy_memcached-2.5-2.jar",
+     "lib/java/spy_memcached-2.5-3.jar",
      "lib/memcache.rb",
      "spec/jruby_memcache_spec.rb"
   ]

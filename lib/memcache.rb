@@ -1,15 +1,21 @@
-require 'java'
+
+if RUBY_PLATFORM =~ /java/i
+  require 'java'
+  require File.dirname(__FILE__) + '/java/spy_memcached-2.5-3.jar'
+end
 require 'base64'
 
-require File.dirname(__FILE__) + '/java/spy_memcached-2.5-3.jar'
+
 
 class MemCache
-  include_class 'net.spy.memcached.MemcachedClient'
-  include_class 'net.spy.memcached.ConnectionFactory'
-  include_class 'net.spy.memcached.KetamaConnectionFactory'
-  include_class 'net.spy.memcached.AddrUtil'
-  include_class 'java.util.List'
-  include_class 'java.util.Arrays'
+  if RUBY_PLATFORM =~ /java/i
+    include_class 'net.spy.memcached.MemcachedClient'
+    include_class 'net.spy.memcached.ConnectionFactory'
+    include_class 'net.spy.memcached.KetamaConnectionFactory'
+    include_class 'net.spy.memcached.AddrUtil'
+    include_class 'java.util.List'
+    include_class 'java.util.Arrays'
+  end
 
   VERSION = '1.7.1'
 
