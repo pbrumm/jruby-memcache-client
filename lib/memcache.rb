@@ -11,10 +11,13 @@ class MemCache
   if RUBY_PLATFORM =~ /java/i
     include_class 'net.spy.memcached.MemcachedClient'
     include_class 'net.spy.memcached.ConnectionFactory'
+    include_class 'net.spy.memcached.HashAlgorithm'
     include_class 'net.spy.memcached.KetamaConnectionFactory'
+    include_class 'net.spy.memcached.DefaultConnectionFactory'
     include_class 'net.spy.memcached.AddrUtil'
     include_class 'java.util.List'
     include_class 'java.util.Arrays'
+    include_class 'java.util.concurrent.TimeUnit'
   end
 
   VERSION = '1.7.2'
@@ -99,9 +102,9 @@ class MemCache
     @namespace = opts[:namespace] || opts["namespace"]
     @pool_name = opts[:pool_name] || opts["pool_name"]
     @readonly = opts[:readonly] || opts["readonly"]
+    factory = DefaultConnectionFactory.new(16384,16384,HashAlgorithm::KETAMA_HASH)
+    @client = MemcachedClient.new(factory, AddrUtil.getAddresses(@servers.join(" ").to_java_string) )
 
-    @client = MemcachedClient.new(KetamaConnectionFactory.new, AddrUtil.getAddresses(@servers.join(" ").to_java_string) )
-    
 
    # @client.primitiveAsString = true
    # @client.sanitizeKeys = false
@@ -138,7 +141,7 @@ class MemCache
 
   def reset
     @client.shutdown
-	  @client = MemcachedClient.new(KetamaConnectionFactory.new, AddrUtil.getAddresses(@servers.join(" ").to_java_string) )
+	  @client = MemcachedClient.new(KetamaConnectionFactory.new, AddrUtil.getAddresses(@servers.join(",").to_java_string) )
   end
   
   def shutdown
@@ -172,7 +175,13 @@ class MemCache
   # Retrieves a value associated with the key from the
   # cache. Retrieves the raw value if the raw parameter is set.
   def get(key, raw = false)
-    value = @client.get(make_cache_key(key))
+    locator = @client.nodeLocator
+    java_key = make_cache_key(key)
+    node = locator.getPrimary(java_key)
+    p node.socketAddress.hostName
+    p node.active
+    
+    value = @client.get(java_key)
 
     value
   end
