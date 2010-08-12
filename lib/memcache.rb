@@ -17,7 +17,7 @@ class MemCache
     include_class 'java.util.Arrays'
   end
 
-  VERSION = '1.7.1'
+  VERSION = '1.7.2'
 
   ##
   # Default options for the cache object.
@@ -101,6 +101,7 @@ class MemCache
     @readonly = opts[:readonly] || opts["readonly"]
 
     @client = MemcachedClient.new(KetamaConnectionFactory.new, AddrUtil.getAddresses(@servers.join(" ").to_java_string) )
+    
 
    # @client.primitiveAsString = true
    # @client.sanitizeKeys = false
@@ -139,6 +140,7 @@ class MemCache
     @client.shutdown
 	  @client = MemcachedClient.new(KetamaConnectionFactory.new, AddrUtil.getAddresses(@servers.join(" ").to_java_string) )
   end
+  
   def shutdown
     @client.shutdown
   end
@@ -147,14 +149,21 @@ class MemCache
   # use. Injects an alive? method into the string so it works with the
   # updated Rails MemCacheStore session store class.
   def servers
-    []
+    @client.getAvailableServers().to_a.map {|server|
+         "#{server.hostName}:#{server.port}"
+    }
+  end
+  def down_servers
+    @client.getUnavailableServers().to_a.map {|server|
+         "#{server.hostName}:#{server.port}"
+    }
   end
 
   ##
   # Determines whether any of the connections to the servers is
   # alive. We are alive if it is the case.
   def alive?
-    true
+    @client.getAvailableServers().to_a.size > 0
   end
 
   alias :active? :alive?

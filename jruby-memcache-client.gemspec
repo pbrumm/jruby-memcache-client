@@ -5,7 +5,7 @@
 
 Gem::Specification.new do |s|
   s.name = %q{jruby-memcache-spy-client}
-  s.version = "1.7.1"
+  s.version = "1.7.2"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Abhi Yerra", "Ikai Lan", "Frederic Jean", "Lennon Day-Reynolds", "slyphon", "Brayn Helmkamp", "Travis Tilley"]
