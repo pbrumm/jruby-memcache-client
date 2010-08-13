@@ -102,8 +102,7 @@ class MemCache
     @namespace = opts[:namespace] || opts["namespace"]
     @pool_name = opts[:pool_name] || opts["pool_name"]
     @readonly = opts[:readonly] || opts["readonly"]
-    factory = DefaultConnectionFactory.new(16384,16384,HashAlgorithm::KETAMA_HASH)
-    @client = MemcachedClient.new(factory, AddrUtil.getAddresses(@servers.join(" ").to_java_string) )
+    @client = MemcachedClient.new(DefaultConnectionFactory.new, AddrUtil.getAddresses(@servers.join(",").to_java_string) )
 
 
    # @client.primitiveAsString = true
@@ -141,7 +140,7 @@ class MemCache
 
   def reset
     @client.shutdown
-	  @client = MemcachedClient.new(KetamaConnectionFactory.new, AddrUtil.getAddresses(@servers.join(",").to_java_string) )
+	  @client = MemcachedClient.new(DefaultConnectionFactory.new, AddrUtil.getAddresses(@servers.join(",").to_java_string) )
   end
   
   def shutdown
@@ -175,13 +174,15 @@ class MemCache
   # Retrieves a value associated with the key from the
   # cache. Retrieves the raw value if the raw parameter is set.
   def get(key, raw = false)
-    #locator = @client.nodeLocator
+    locator = @client.nodeLocator
     java_key = make_cache_key(key)
-    #node = locator.getPrimary(java_key)
-    #p node.socketAddress.hostName
-    #p node.active
-    
-    value = @client.get(java_key)
+    node = locator.getPrimary(java_key)
+    p node.socketAddress.hostName
+    p node.active
+    p java_key
+    p HashAlgorithm::KETAMA_HASH.hash(java_key)
+    p HashAlgorithm::KETAMA_HASH.hash(key)
+    value = @client.get(key)
 
     value
   end
