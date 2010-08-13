@@ -174,14 +174,9 @@ class MemCache
   # Retrieves a value associated with the key from the
   # cache. Retrieves the raw value if the raw parameter is set.
   def get(key, raw = false)
-    locator = @client.nodeLocator
+  
     java_key = make_cache_key(key)
-    node = locator.getPrimary(java_key)
-    p node.socketAddress.hostName
-    p node.active
-    p java_key
-    p HashAlgorithm::KETAMA_HASH.hash(java_key)
-    p HashAlgorithm::KETAMA_HASH.hash(key)
+    
     value = @client.get(key)
 
     value
